@@ -1,0 +1,223 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Profit Tracker</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}"
+            defer></script>
+</head>
+
+<body>
+<header class="topbar">
+    <a class="logo" href="{{ url_for('index') }}">Profit<span>Track.</span></a>
+    <div class="status"><span class="dot"></span> Expense Tracker</div>
+</header>
+
+<main class="container">
+
+    <section class="welcome">
+        <div>
+            <p class="eyebrow">YOUR MONEY, YOUR CONTROL</p>
+            <h1>Weekly Profit <span>Tracker</span></h1>
+            <p class="subtitle">
+                Track your daily earnings, petrol and other expenses.
+            </p>
+        </div>
+        <div class="hero-icon">₹</div>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="alert {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <section class="week-panel">
+        <form action="{{ url_for('index') }}" method="GET"
+              class="week-form">
+            <div>
+                <label for="week">Choose a date to view its week</label>
+                <input type="date" id="week" name="week"
+                       value="{{ selected_week }}" required>
+            </div>
+            <button type="submit" class="primary-btn">View Week →</button>
+        </form>
+
+        <p class="week-range">
+            <span>WEEKLY REPORT</span>
+            {{ week_start }} &nbsp; — &nbsp; {{ week_end }}
+        </p>
+        <p class="hint">Your report runs from Monday to Sunday.</p>
+    </section>
+
+    <section class="stats">
+        <article class="stat-card earnings-card">
+            <div class="stat-icon">↗</div>
+            <p>Total Earnings</p>
+            <h2>₹{{ "%.2f"|format(summary.total_earnings) }}</h2>
+            <small>Money earned this week</small>
+        </article>
+
+        <article class="stat-card petrol-card">
+            <div class="stat-icon">⛽</div>
+            <p>Petrol Expenses</p>
+            <h2>₹{{ "%.2f"|format(summary.total_petrol) }}</h2>
+            <small>Fuel spending this week</small>
+        </article>
+
+        <article class="stat-card other-card">
+            <div class="stat-icon">▤</div>
+            <p>Other Expenses</p>
+            <h2>₹{{ "%.2f"|format(summary.total_other) }}</h2>
+            <small>Other spending this week</small>
+        </article>
+
+        <article class="stat-card profit-card">
+            <div class="stat-icon">₹</div>
+            <p>Weekly Net Profit</p>
+            <h2>₹{{ "%.2f"|format(summary.total_profit) }}</h2>
+            <small>
+                {% if summary.total_profit < 0 %}
+                    You spent more than you earned
+                {% else %}
+                    Earnings after expenses
+                {% endif %}
+            </small>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="section-heading">
+            <div>
+                <h2>＋ Add Daily Record</h2>
+                <p>Record your earnings and expenses for a day.</p>
+            </div>
+        </div>
+
+        <form action="{{ url_for('add_record') }}"
+              method="POST" id="recordForm">
+
+            <div class="form-grid">
+                <div class="field">
+                    <label for="work_date">Date</label>
+                    <input type="date" id="work_date" name="work_date"
+                           value="{{ selected_week }}" required>
+                </div>
+
+                <div class="field">
+                    <label for="earnings">Daily Earnings (₹)</label>
+                    <input type="number" id="earnings" name="earnings"
+                           min="0" max="99999999.99" step="0.01"
+                           placeholder="e.g. 1500" value="0" required>
+                </div>
+
+                <div class="field">
+                    <label for="petrol">Petrol Expense (₹)</label>
+                    <input type="number" id="petrol" name="petrol"
+                           min="0" max="99999999.99" step="0.01"
+                           placeholder="e.g. 200" value="0" required>
+                </div>
+
+                <div class="field">
+                    <label for="other_expenses">Other Expenses (₹)</label>
+                    <input type="number" id="other_expenses"
+                           name="other_expenses"
+                           min="0" max="99999999.99" step="0.01"
+                           placeholder="e.g. 100" value="0" required>
+                </div>
+            </div>
+
+            <div class="field notes-field">
+                <label for="notes">Notes (optional)</label>
+                <input type="text" id="notes" name="notes"
+                       maxlength="255"
+                       placeholder="e.g. Food, tea, parking or repairs">
+            </div>
+
+            <div class="calculation">
+                <div>
+                    <small>Estimated Daily Profit</small>
+                    <h2 id="liveProfit">₹0.00</h2>
+                </div>
+                <p>Earnings − Petrol − Other expenses</p>
+            </div>
+
+            <button class="primary-btn" type="submit">
+                Save Daily Record <span>→</span>
+            </button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="section-heading">
+            <div>
+                <h2>Daily Records</h2>
+                <p>Records for the selected week.</p>
+            </div>
+            <input type="search" id="searchInput"
+                   placeholder="Search records..."
+                   aria-label="Search daily records">
+        </div>
+
+        <div class="table-wrap">
+            <table id="recordsTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Earnings</th>
+                        <th>Petrol</th>
+                        <th>Other</th>
+                        <th>Daily Profit</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.work_date }}</td>
+                        <td>₹{{ "%.2f"|format(record.earnings) }}</td>
+                        <td>₹{{ "%.2f"|format(record.petrol) }}</td>
+                        <td>₹{{ "%.2f"|format(record.other_expenses) }}</td>
+                        <td class="{% if record.profit < 0 %}loss{% else %}amount{% endif %}">
+                            ₹{{ "%.2f"|format(record.profit) }}
+                        </td>
+                        <td class="notes">{{ record.notes or "—" }}</td>
+                        <td>
+                            <form class="delete-form"
+                                  method="POST"
+                                  action="{{ url_for('delete_record',
+                                                    record_id=record.id) }}">
+                                <input type="hidden" name="week"
+                                       value="{{ selected_week }}">
+                                <button type="submit" class="delete-btn">
+                                    Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="empty">
+                            No records for this week. Add your first daily record!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <p id="noResults" class="empty" hidden>
+            No matching records found.
+        </p>
+    </section>
+
+    <footer>ProfitTrack · Make every rupee count.</footer>
+</main>
+</body>
+</html>
